@@ -19,15 +19,17 @@ scene.add(sphere);
 
 // Optional: Give the Earth a realistic tilt
 sphere.rotation.z = 23.5 * Math.PI / 180;
+sphere.rotation.x = Math.PI/3;
+sphere.rotation.y = -Math.PI/2;
 
 camera.position.z = 5;
 
 let dotsArray = [];
 
-// Make analyze function available globally
-window.analyzeTradeData = analyzeTradeData;
+// let intialized = false;
 
-await loadBorderCoordinates();
+let curr_start = 1;
+await loadBorderCoordinates(curr_start, curr_start + 500);
 renderer.setAnimationLoop(animate);
 
 export function get_dot_radius() {
@@ -37,16 +39,30 @@ export function get_dot_radius() {
 // main program loop
 function animate (time) {
     // 1. Spin the globe automatically like the Earth
-    sphere.rotation.y += 0.002;
+    sphere.rotation.y += 0.001;
     if (dot_radius > .02) {
-        dot_radius -= .025/(dot_radius);
+        dot_radius -= .02/(dot_radius);
         console.log(dot_radius);
+    } else {
+        dot_radius = .01;
     }
-
+    
+    // if (is_blank()) {
+    //     curr_start += 501;
+    // }
+    
     // 2. Update dot visibility/phasing
     draw_borders();
     
     renderer.render(scene, camera);
+
+    console.log(time);
+
+    // if (initialized == true) {
+    //     loadBorderCoordinates(1);
+    //     initialized = false;
+    // }
+
 }
 
 function draw_borders() {
@@ -58,98 +74,32 @@ function draw_borders() {
     }
 }
 
-async function loadBorderCoordinates() {
+function is_blank() {
+    return sphere.rotation.y > 28 && sphere.rotation.y < 26;
+}
+
+async function loadBorderCoordinates(start, end) {
     try {
-        const response = await fetch('coords.csv');
+        const response = await fetch('world_coords.csv');
         const data = await response.text();
 
-        dotsArray = data.trim().split('\n').map(row => {
-            const [lat, lon] = row.split(',').map(Number);
-            return new Dot(lat, lon); 
-        });
+        // 1. Split the data into an array of rows first
+        const rows = data.trim().split('\n');
+
+        // 2. Initialize dotsArray as an empty array
+        dotsArray = [];
+
+        // 3. Loop through each row
+        for (let i = 0; i < 8000 - 1; i++) {
+            // Split by comma and convert strings to numbers
+            const [lat, lon] = rows[i].split(',').map(Number);
+            
+            // Create the new Dot and push it into the array
+            dotsArray.push(new Dot(lat, lon));
+        }
 
         // console.log("Loaded Dots Array:", do tsArray);
     } catch (error) {
         console.error("Error loading the CSV:", error);
     }
-}
-
-// Trade data analysis function
-async function analyzeTradeData() {
-    const product = document.getElementById('product').value;
-    const country = document.getElementById('country').value;
-    const statusDiv = document.getElementById('status');
-    const resultsDiv = document.getElementById('results');
-    const resultsContent = document.getElementById('resultsContent');
-    const analyzeBtn = document.getElementById('analyze');
-    
-    // Validation
-    if (!product || !country) {
-        statusDiv.innerHTML = '<span class="error">Please enter both product and country code</span>';
-        return;
-    }
-    
-    // Show loading state
-    statusDiv.innerHTML = 'Loading...';
-    analyzeBtn.disabled = true;
-    resultsDiv.style.display = 'none';
-    
-    try {
-        const response = await fetch('http://localhost:5000/api/trade', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                product: product,
-                country: country
-            })
-        });
-        
-        const result = await response.json();
-        
-        if (!response.ok) {
-            throw new Error(result.error || 'Failed to fetch trade data');
-        }
-        
-        if (result.success && result.data) {
-            // Display results
-            displayTradeData(result.data);
-            statusDiv.innerHTML = '<span class="success">Analysis complete!</span>';
-        } else {
-            throw new Error('Invalid response format');
-        }
-        
-    } catch (error) {
-        statusDiv.innerHTML = `<span class="error">Error: ${error.message}</span>`;
-        console.error('Error fetching trade data:', error);
-    } finally {
-        analyzeBtn.disabled = false;
-    }
-}
-
-function displayTradeData(data) {
-    const resultsDiv = document.getElementById('results');
-    const resultsContent = document.getElementById('resultsContent');
-    
-    if (!data || data.length === 0) {
-        resultsContent.innerHTML = '<p>No trade data found.</p>';
-        resultsDiv.style.display = 'block';
-        return;
-    }
-    
-    // Build HTML for trade data
-    let html = '';
-    data.forEach((item, index) => {
-        html += `
-            <div class="trade-item">
-                <strong>${item.partnerDesc || 'Unknown'}</strong> → ${item.reporterDesc || 'Unknown'}<br/>
-                <em>${item.cmdDesc || 'Unknown commodity'}</em><br/>
-                Value: $${(item.primaryValue || 0).toLocaleString()}
-            </div>
-        `;
-    });
-    
-    resultsContent.innerHTML = html;
-    resultsDiv.style.display = 'block';
 }
