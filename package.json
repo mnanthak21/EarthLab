@@ -3,6 +3,14 @@
     "three": "^0.183.2"
   },
   "devDependencies": {
+    "concurrently": "^9.2.1",
     "vite": "^7.3.1"
+  },
+  "scripts": {
+    "dev": "vite",
+    "backend": "python backend.py",
+    "start": "concurrently \"npm run backend\" \"npm run dev\"",
+    "build": "vite build",
+    "preview": "vite preview"
   }
 }

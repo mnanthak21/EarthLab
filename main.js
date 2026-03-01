@@ -24,6 +24,9 @@ camera.position.z = 5;
 
 let dotsArray = [];
 
+// Make analyze function available globally
+window.analyzeTradeData = analyzeTradeData;
+
 await loadBorderCoordinates();
 renderer.setAnimationLoop(animate);
 
@@ -69,4 +72,84 @@ async function loadBorderCoordinates() {
     } catch (error) {
         console.error("Error loading the CSV:", error);
     }
+}
+
+// Trade data analysis function
+async function analyzeTradeData() {
+    const product = document.getElementById('product').value;
+    const country = document.getElementById('country').value;
+    const statusDiv = document.getElementById('status');
+    const resultsDiv = document.getElementById('results');
+    const resultsContent = document.getElementById('resultsContent');
+    const analyzeBtn = document.getElementById('analyze');
+    
+    // Validation
+    if (!product || !country) {
+        statusDiv.innerHTML = '<span class="error">Please enter both product and country code</span>';
+        return;
+    }
+    
+    // Show loading state
+    statusDiv.innerHTML = 'Loading...';
+    analyzeBtn.disabled = true;
+    resultsDiv.style.display = 'none';
+    
+    try {
+        const response = await fetch('http://localhost:5000/api/trade', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                product: product,
+                country: country
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(result.error || 'Failed to fetch trade data');
+        }
+        
+        if (result.success && result.data) {
+            // Display results
+            displayTradeData(result.data);
+            statusDiv.innerHTML = '<span class="success">Analysis complete!</span>';
+        } else {
+            throw new Error('Invalid response format');
+        }
+        
+    } catch (error) {
+        statusDiv.innerHTML = `<span class="error">Error: ${error.message}</span>`;
+        console.error('Error fetching trade data:', error);
+    } finally {
+        analyzeBtn.disabled = false;
+    }
+}
+
+function displayTradeData(data) {
+    const resultsDiv = document.getElementById('results');
+    const resultsContent = document.getElementById('resultsContent');
+    
+    if (!data || data.length === 0) {
+        resultsContent.innerHTML = '<p>No trade data found.</p>';
+        resultsDiv.style.display = 'block';
+        return;
+    }
+    
+    // Build HTML for trade data
+    let html = '';
+    data.forEach((item, index) => {
+        html += `
+            <div class="trade-item">
+                <strong>${item.partnerDesc || 'Unknown'}</strong> → ${item.reporterDesc || 'Unknown'}<br/>
+                <em>${item.cmdDesc || 'Unknown commodity'}</em><br/>
+                Value: $${(item.primaryValue || 0).toLocaleString()}
+            </div>
+        `;
+    });
+    
+    resultsContent.innerHTML = html;
+    resultsDiv.style.display = 'block';
 }
