@@ -3,7 +3,7 @@ import { s_radius, sphere, get_dot_radius } from './main.js';
 
 export class Dot {
     constructor(lat, lon) {
-        this.geometry = new THREE.PlaneGeometry( .02, .02 );
+        this.geometry = new THREE.PlaneGeometry( .018, .018 );
         this.material = new THREE.MeshBasicMaterial({ 
             color: 0x1C5E0F, 
             side: THREE.DoubleSide, // FIX 1: Allows us to see the plane even if the front faces inward
@@ -29,7 +29,7 @@ export class Dot {
         this.plane.getWorldPosition(this.worldPos);
         
         // The globe has a radius of 2. The front is at Z=2, the equator/sides are at Z=0.
-        const fadeThreshold = 1.0; 
+        const fadeThreshold = 1; 
 
         const phi = THREE.MathUtils.degToRad(90 - this.lat);
         const theta = THREE.MathUtils.degToRad(this.lon + 180);
