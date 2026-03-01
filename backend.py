@@ -23,7 +23,6 @@ def queryComtrade(
 	dest_country:str, 
 	commodity:str, 
 	comtrade_key:str
-	comtrade_key:str
 	):
     	
 	# This returns a list of dicts with all the 'partner' entries
