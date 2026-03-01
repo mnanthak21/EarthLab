@@ -1,35 +1,93 @@
 import * as THREE from 'three';
 import { Dot } from './Dot.js';
+import { Center } from './Center.js';
 
 export const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
+
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+
+window.addEventListener('click', (event) => {
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+    raycaster.setFromCamera(mouse, camera);
+
+    // Grab the .plane from every Center object
+    const centerPlanes = centersArray.map(center => center.plane);
+
+    const intersects = raycaster.intersectObjects(centerPlanes);
+
+    if (intersects.length > 0) {
+        const clickedPlane = intersects[0].object;
+        
+        // Make sure it's not hidden behind the globe
+        if (clickedPlane.visible && clickedPlane.material.opacity > 0) {
+            
+            // Find our original Center class instance
+            const clickedCenter = centersArray.find(c => c.plane === clickedPlane);
+            on_center_click(clickedCenter);
+        }
+    }
+});
+
+export function on_center_click(centerObject) {
+    teleport_to_region_phi_theta()
+    console.log("Clicked on " + centerObject.country + " at Coordinates:", centerObject.lat, centerObject.lon);
+    
+    const coords = country_to_globe_coords(centerObject.region, centerObject.country);
+    teleport_to_region_phi_theta(...coords);
+}
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize( window.innerWidth, window.innerHeight );
 document.body.appendChild( renderer.domElement );
 
-export const s_radius = 2;
-export const s_geometry = new THREE.SphereGeometry(s_radius, 60, 60);
+export const s_radius = 3;
+export const s_geometry = new THREE.SphereGeometry(s_radius, 40, 40);
 export const s_material = new THREE.MeshBasicMaterial( { color: '#1A164F', wireframe: true } );
 export const sphere = new THREE.Mesh( s_geometry, s_material );
 
 export let dot_radius = 3;
+export let curr_region;
 
 scene.add(sphere);
 
+let country_codes;
+
+async function load_country_codes() {
+    const response = await fetch('codes.json');
+    country_codes = await response.json();
+}
+
+await load_country_codes();
+
+// Global variable to hold your data once it loads
+let world_data = null;
+
+async function loadWorldData() {
+    const response = await fetch('world_data.json');
+    world_data = await response.json();
+}
+
+await loadWorldData();
+
 // Optional: Give the Earth a realistic tilt
-sphere.rotation.z = 23.5 * Math.PI / 180;
-sphere.rotation.x = Math.PI/3;
-sphere.rotation.y = -Math.PI/2;
+// sphere.rotation.z = 23.5 * Math.PI / 180;
+await user_input_region("South America");
 
 camera.position.z = 5;
 
 let dotsArray = [];
+let centersArray = [];
 
 // let intialized = false;
 
-let curr_start = 1;
-await loadBorderCoordinates(curr_start, curr_start + 500);
+console.log(country_to_code("Brazil"));
+
+await loadBorderCoordinates();
+await loadCenterCoordinates();
 renderer.setAnimationLoop(animate);
 
 export function get_dot_radius() {
@@ -41,28 +99,18 @@ function animate (time) {
     // 1. Spin the globe automatically like the Earth
     sphere.rotation.y += 0.001;
     if (dot_radius > .02) {
-        dot_radius -= .02/(dot_radius);
+        dot_radius -= .02;
         console.log(dot_radius);
     } else {
         dot_radius = .01;
     }
     
-    // if (is_blank()) {
-    //     curr_start += 501;
-    // }
     
     // 2. Update dot visibility/phasing
     draw_borders();
+    draw_centers();
     
     renderer.render(scene, camera);
-
-    console.log(time);
-
-    // if (initialized == true) {
-    //     loadBorderCoordinates(1);
-    //     initialized = false;
-    // }
-
 }
 
 function draw_borders() {
@@ -74,11 +122,16 @@ function draw_borders() {
     }
 }
 
-function is_blank() {
-    return sphere.rotation.y > 28 && sphere.rotation.y < 26;
+function draw_centers() {
+    if (!centersArray || centersArray.length === 0) return;
+
+    // Trigger the phase-out logic for each center plane
+    for (let i = 0; i < centersArray.length; i++) {
+        centersArray[i].updateVisibility();
+    }
 }
 
-async function loadBorderCoordinates(start, end) {
+async function loadBorderCoordinates() {
     try {
         const response = await fetch('world_coords.csv');
         const data = await response.text();
@@ -90,7 +143,7 @@ async function loadBorderCoordinates(start, end) {
         dotsArray = [];
 
         // 3. Loop through each row
-        for (let i = 0; i < 8000 - 1; i++) {
+        for (let i = 0; i < 10930; i++) {
             // Split by comma and convert strings to numbers
             const [lat, lon] = rows[i].split(',').map(Number);
             
@@ -102,4 +155,71 @@ async function loadBorderCoordinates(start, end) {
     } catch (error) {
         console.error("Error loading the CSV:", error);
     }
+}
+
+async function loadCenterCoordinates() {
+    // 1. Use Object.entries to get BOTH the key (string) and the value (data object)
+    for (const [regionName, regionData] of Object.entries(world_data)) {
+        
+        // 2. Do the exact same thing for the countries to get the country string name!
+        for (const [countryName, countryData] of Object.entries(regionData.countries)) {
+            
+            // Now you have everything! 
+            // regionName = "North America"
+            // countryName = "Antigua and Barbuda"
+            // countryData = { lat: 17.05, lon: -61.8 }
+            
+            centersArray.push(new Center(countryData.lat, countryData.lon, countryName, regionName));
+        }
+    }
+    console.log("All centers loaded:", centersArray);
+}
+
+async function user_input_region(regionName) {
+    curr_region = regionName;
+    
+    // 1. Await the function to get the actual array: [theta, phi]
+    const coords = await region_to_globe_coords(regionName);
+    
+    // 2. Spread the array so theta goes to the first argument, phi to the second
+    if (coords) {
+        teleport_to_region_phi_theta(...coords); 
+    }
+} 
+
+// user inputs region, function spits out latittude and longitude converted to globe coords
+function region_to_globe_coords(regionName) {
+
+    // 2. Grab the lat/lon directly
+    const lat = world_data[regionName].lat;
+    const lon = world_data[regionName].lon;
+
+    // 3. Convert to Three.js angles
+    const phi = THREE.MathUtils.degToRad(lat);
+    const theta = THREE.MathUtils.degToRad(-lon - 180);
+
+    return [theta, phi];
+}
+
+function country_to_globe_coords(regionName, countryName) {
+
+    // 2. Grab the lat/lon directly
+    const lat = world_data[regionName].countries[countryName].lat;
+    const lon = world_data[regionName].countries[countryName].lon;
+
+    // 3. Convert to Three.js angles
+    const phi = THREE.MathUtils.degToRad(lat);
+    const theta = THREE.MathUtils.degToRad(-lon - 180);
+
+    return [theta, phi];
+}
+
+function teleport_to_region_phi_theta(theta, phi) {
+    sphere.rotation.y = Number(theta);
+    sphere.rotation.x = Number(phi);
+}
+
+
+function country_to_code(country) {
+    return country_codes[country];
 }
