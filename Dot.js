@@ -41,7 +41,7 @@ export class Dot {
         this.plane.lookAt(0, 0, 0);
         
         // FIX 3: Changed the hide threshold to 0.0 so they stay visible until they hit the actual horizon
-        if (this.worldPos.z < 0.0) {
+        if (this.worldPos.z < 2.0) {
             this.plane.visible = false;
         } else {
             this.plane.visible = true;
