@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 COMTRADE_API_CALLS = os.getenv('COMTRADE_API_CALLS')
+# COMTRADE_API_CALLS = 'c7c449e86a174f448f873ea43b9bceec'
 GOOGLE_GEN_AI = os.getenv('GOOGLE_GEN_AI')
 
 app = Flask(__name__)
@@ -22,6 +23,7 @@ def queryComtrade(
 	dest_country:str, 
 	commodity:str, 
 	comtrade_key:str
+	comtrade_key:str
 	):
     	
 	# This returns a list of dicts with all the 'partner' entries
@@ -30,14 +32,6 @@ def queryComtrade(
 
 	# defaults to None with invalid input which makes it 'all countries'
 	# country_codes = comtradeapicall.convertCountryIso3ToCode('156,484,458,392,410')
-
-	#print(f"Item started: {commodity}")
-	#print(f"Year: {year}")
-	#print(f"dest_country: {dest_country}")
-	# Variables
-	#year = year
-	#dest_country = dest_country
-	#commodity = commodity
 
 
 	mydf = comtradeapicall.getTradeMatrix(
@@ -89,6 +83,7 @@ def queryComtrade(
 	
 		# Print each df for each commodity
 		#print(filtered_df)
+		# print(filtered_df)
 		#print("----------------------------")
 
 def get_trade_data(product:str, country:str):
@@ -105,7 +100,7 @@ def get_trade_data(product:str, country:str):
 	"""
 
 	#Global data frame to assisst with merging
-	df = pd.DataFrame()
+	# df = pd.DataFrame()
 
 	# To reduce UI elements, year is preset to 2017
 	year = '2017'
@@ -114,12 +109,12 @@ def get_trade_data(product:str, country:str):
 	comtrade_key = COMTRADE_API_CALLS
 	gemini_key = GOOGLE_GEN_AI
 
-	# Consider error checking for demand spikes                                     
-	client = genai.Client(api_key = gemini_key)                                               
-	response = client.models.generate_content(                                      
+	# Consider error checking for demand spikes
+	client = genai.Client(api_key = GOOGLE_GEN_AI)
+	response = client.models.generate_content(
 		model="gemini-3-flash-preview",                                             
 		config=genai.types.GenerateContentConfig(
-			response_mime_type="application/json",                                  
+			response_mime_type="application/json",
 		),                                                                          
 		contents=f"""
 				List between 5 and 10 major components of {product} in
