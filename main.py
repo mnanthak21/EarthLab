@@ -1,6 +1,7 @@
 import geopandas as gpd
 from shapely.geometry import Polygon, MultiPolygon
-import random
+
+num = 0
 
 # 1. Load the dataset
 gdf = gpd.read_file("ne_110m_admin_0_countries.zip")
@@ -11,12 +12,12 @@ with open('coords.csv', 'w') as f:
     # f.write("lat,lon\n")
 
     for index, row in gdf.iterrows():
-        num = random.randint(0, 10)
-        if (num < 10):
+        num += 1
+        if ((num%5 == 0)): 
             continue
 
         geom = row.geometry
-        
+
         # Handle both Polygon and MultiPolygon
         if isinstance(geom, Polygon):
             polygons = [geom]
