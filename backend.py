@@ -2,6 +2,14 @@ import comtradeapicall
 import pandas as pd
 import json #Part of python standard library
 from google import genai
+import os
+
+# Load environment variables
+from dotenv import load_dotenv
+load_dotenv()
+
+COMTRADE_API_CALLS = os.getenv('COMTRADE_API_CALLS')
+GOOGLE_GEN_AI = os.getenv('GOOGLE_GEN_AI')
 
 # Input from another program
 product = 'Ford F150'
@@ -110,8 +118,8 @@ def main(product:str, country:str):
 	year = '2017'
 
 	# API KEYS
-	comtrade_key = 'c2a6c9f0ff0c43d281f85cea03c83d2d'
-	gemini_key = "AIzaSyAST_ynj0dCY9-8EhNQjivT-_l-0RZ8UCg"
+	comtrade_key = COMTRADE_API_CALLS
+	gemini_key = GOOGLE_GEN_AI
 
 
 	# Consider error checking for demand spikes                                     
