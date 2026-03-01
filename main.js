@@ -1,88 +1,71 @@
 import * as THREE from 'three';
+import { Dot } from './Dot.js';
 
-const scene = new THREE.Scene();
+export const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
 
-const renderer = new THREE.WebGLRenderer();
+const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize( window.innerWidth, window.innerHeight );
 document.body.appendChild( renderer.domElement );
 
-const s_geometry = new THREE.SphereGeometry(2, 60, 60, 0, 2*Math.PI, 0, 2*Math.PI);
-const s_material = new THREE.MeshBasicMaterial( { color: '#1A164F', wireframe: true, depthTest: true } );
-const sphere = new THREE.Mesh( s_geometry, s_material );
+export const s_radius = 2;
+export const s_geometry = new THREE.SphereGeometry(s_radius, 60, 60);
+export const s_material = new THREE.MeshBasicMaterial( { color: '#1A164F', wireframe: true } );
+export const sphere = new THREE.Mesh( s_geometry, s_material );
+
+export let dot_radius = 3;
+
 scene.add(sphere);
 
-const geometry = new THREE.PlaneGeometry( .01, .01 );
-const material = new THREE.MeshBasicMaterial( { color: 0x00ff00, side: THREE.DoubleSide } );
-const plane = new THREE.Mesh( geometry, material );
-scene.add( plane );
-
-let sphere_phi = 0;
-let sphere_theta = 0;
+// Optional: Give the Earth a realistic tilt
+sphere.rotation.z = 23.5 * Math.PI / 180;
 
 camera.position.z = 5;
 
-// main program loop
-function animate (time) {
-    face_coords(-28.67, -48.88)
-    draw_borders();
-    renderer.render(scene, camera);
-}
-const dotsArray = await loadCoordinates('coords.csv');
+let dotsArray = [];
+
+await loadBorderCoordinates();
 renderer.setAnimationLoop(animate);
 
-// TO-DO: rotate border dots
-function face_coords(lat, lon) {
-    const coords = convert_spherical_coords(lat, lon);
-    sphere_phi = sphere.rotation.x = coords[0];
-    sphere_theta = sphere.rotation.y = coords[1];
+export function get_dot_radius() {
+    return dot_radius;
 }
 
-function draw_dot(lat, lon) {
-    const geometry = new THREE.PlaneGeometry( .01, .01 );
-    const material = new THREE.MeshBasicMaterial( { color: 0x00ff00, side: THREE.DoubleSide } );
-    const plane = new THREE.Mesh( geometry, material );
-    scene.add( plane );
+// main program loop
+function animate (time) {
+    // 1. Spin the globe automatically like the Earth
+    sphere.rotation.y += 0.002;
+    if (dot_radius > .02) {
+        dot_radius -= .025/(dot_radius);
+        console.log(dot_radius);
+    }
 
-    const coords = convert_spherical_coords(lat, lon);
-
-    // take difference between globe and dot spherical coords
-    // then convert spherical coords to rectangluar coords
-    plane.position.x = 2*Math.sin(Number(coords[0]) - Number(sphere_phi));
-    plane.position.y = 2*Math.sin(Number(coords[1]) - Number(sphere_theta));
-    plane.position.z = 2*Math.cos(Number(coords[0]) - Number(sphere_phi));
+    // 2. Update dot visibility/phasing
+    draw_borders();
+    
+    renderer.render(scene, camera);
 }
 
 function draw_borders() {
-    if (!dotsArray || dotsArray.length === 0) {
-        console.error("dotsArray is empty!");
-        return;
-    }
+    if (!dotsArray || dotsArray.length == 0) return;
 
-    for ( const [lon, lat] of dotsArray) {
-        draw_dot(lat, lon);
+    // Trigger the phase-out logic for each dot
+    for (let i = 0; i < dotsArray.length; i++) {
+        dotsArray[i].updateVisibility();
     }
 }
 
-// return phi and theta coords from lat and lon
-function convert_spherical_coords(lat, lon) {
-    return [Number(lon * Math.PI/180), Number(lat * Math.PI/180)];
-}
-
-async function loadCoordinates(csvUrl) {
+async function loadBorderCoordinates() {
     try {
-        const response = await fetch(csvUrl);
+        const response = await fetch('coords.csv');
         const data = await response.text();
 
-        // 1. Split by new line, 2. Filter out empty lines, 3. Map to numbers
         dotsArray = data.trim().split('\n').map(row => {
-            // Split by comma and convert strings to Floats
-            const [lon, lat] = row.split(',').map(Number);
-            return [lon, lat]; 
+            const [lat, lon] = row.split(',').map(Number);
+            return new Dot(lat, lon); 
         });
 
-        // console.log("Loaded 2D Array:", dotsArray);
-        return;
+        // console.log("Loaded Dots Array:", do tsArray);
     } catch (error) {
         console.error("Error loading the CSV:", error);
     }
