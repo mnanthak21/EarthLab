@@ -9,20 +9,19 @@ from dotenv import load_dotenv
 load_dotenv()
 
 COMTRADE_API_CALLS = os.getenv('COMTRADE_API_CALLS')
+# COMTRADE_API_CALLS = 'c7c449e86a174f448f873ea43b9bceec'
 GOOGLE_GEN_AI = os.getenv('GOOGLE_GEN_AI')
 
 # Input from another program
 product = 'Ford F150'
 country = '842' #Needs country code to work not ISO: 'USA'
-year = '2017'
 
 # Input datatype can be changed depending on Gemini output format
 def queryComtrade(
 	year:str, 
 	dest_country:str, 
 	commodity:str, 
-	comtrade_key:str,
-	df
+	comtrade_key:str
 	):
     	
 	# This returns a list of dicts with all the 'partner' entries
@@ -31,14 +30,6 @@ def queryComtrade(
 
 	# defaults to None with invalid input which makes it 'all countries'
 	# country_codes = comtradeapicall.convertCountryIso3ToCode('156,484,458,392,410')
-
-	#print(f"Item started: {commodity}")
-	#print(f"Year: {year}")
-	#print(f"dest_country: {dest_country}")
-	# Variables
-	#year = year
-	#dest_country = dest_country
-	#commodity = commodity
 
 
 	mydf = comtradeapicall.getTradeMatrix(
@@ -86,14 +77,18 @@ def queryComtrade(
 
 		# Stack data frames together from successive calls to comtrade
 		# global df # Declare global variable for access
-		if df.empty:
-			df = filtered_df
-		else: 
-			df = pd.concat([df, filtered_df], ignore_index=True)
+		#if df.empty:
+		#	df = filtered_df
+		#else:			 
+		# 	df = pd.concat([df, filtered_df], ignore_index=True)
+
 	
 		# Print each df for each commodity
 		#print(filtered_df)
+		# print(filtered_df)
 		#print("----------------------------")
+		
+		return filtered_df
 
 def main(product:str, country:str):
 	"""
@@ -112,22 +107,17 @@ def main(product:str, country:str):
 
 
 	#Global data frame to assisst with merging
-	df = pd.DataFrame()
+	# df = pd.DataFrame()
 
 	# To reduce UI elements, year is preset to 2017
 	year = '2017'
 
-	# API KEYS
-	comtrade_key = COMTRADE_API_CALLS
-	gemini_key = GOOGLE_GEN_AI
-
-
-	# Consider error checking for demand spikes                                     
-	client = genai.Client(api_key = gemini_key)                                               
-	response = client.models.generate_content(                                      
+	# Consider error checking for demand spikes
+	client = genai.Client(api_key = GOOGLE_GEN_AI)
+	response = client.models.generate_content(
 		model="gemini-3-flash-preview",                                             
 		config=genai.types.GenerateContentConfig(
-			response_mime_type="application/json",                                  
+			response_mime_type="application/json",
 		),                                                                          
 		contents=f"""
 				List between 5 and 10 major components of {product} in
@@ -139,17 +129,25 @@ def main(product:str, country:str):
                                                   
 	data = json.loads(response.text) #returns an array
 
-	
+	# results list
+	results_list = []	
+
+
 	# Run a UN Query for each value returned by GEMAPI       
 	for item in data:
 		#print(item)
-		queryComtrade(year, country, item, comtrade_key, df)
+		results_list.append(queryComtrade(year, country, item, COMTRADE_API_CALLS))
 		#print(f"{item}, type: {type(item)}")
+	
+	final_df = pd.concat(results_list, ignore_index=True)
 
-	df.to_json('data.json')
+	#print(final_df)
+	# final_df.to_json('data.json')
 
-	# return df
+	return final_df
 
 
 
 main(product, country)
+
+
